@@ -2,30 +2,33 @@
 
 # Default time threshold in hours
 DEFAULT_THRESHOLD="40hrs"
-THRESHOLD=${1:-$DEFAULT_THRESHOLD}
 
-# Convert the threshold to seconds
-THRESHOLD_SECONDS=$(echo $THRESHOLD | sed 's/hrs/*3600/' | bc)
+# Directory to clean, passed as the first argument, or default if not provided
+DIR="${1:-/root/data/audios/folder}"
+# Time threshold passed as the second argument, or default if not provided
+TIME_THRESHOLD="${2:-$DEFAULT_THRESHOLD}"
 
-# Get the current date for the log file name
-CURRENT_DATE=$(date +"%d-%m-%Y")
+# Check if the directory exists
+if [ ! -d "$DIR" ]; then
+  echo "Error: Directory $DIR does not exist."
+  exit 1
+fi
 
-# Log file
-LOG_FILE="deleted-files-${CURRENT_DATE}.log"
+# Convert the time threshold into seconds
+THRESHOLD_SECONDS=$(echo $TIME_THRESHOLD | sed 's/hrs$//')*3600
 
-# Directory containing audio files
-AUDIO_DIR="/data/audios/folder"
+# Generate log file name
+LOG_FILE="deleted-files-$(date +'%d-%m-%Y').log"
 
-# Find and delete files older than the specified threshold
-find $AUDIO_DIR -name "*.wav" -type f -printf "%p %T@ %Tc\n" | while read FILE CREATETIME CREATETIME_HUMAN
-do
-  CURRENT_TIME=$(date +%s)
-  AGE=$((CURRENT_TIME - $(echo $CREATETIME | cut -d. -f1)))
-  if [ $AGE -ge $THRESHOLD_SECONDS ]; then
-    # Log the deletion details
-    DELETION_TIME=$(date -Iseconds)
-    echo "$FILE $CREATETIME_HUMAN $DELETION_TIME" >> $LOG_FILE
-    # Delete the file
-    rm "$FILE"
-  fi
+# Find and delete files, and log the details
+find "$DIR" -name "*.wav" -type f -printf "%p\t%T+\n" | while IFS=$'\t' read -r file creation_time; do
+    creation_timestamp=$(date -d "$creation_time" +%s)
+    current_timestamp=$(date +%s)
+    age=$((current_timestamp - creation_timestamp))
+    if (( age > THRESHOLD_SECONDS )); then
+        deletion_time=$(date --iso-8601=seconds)
+        creation_time_iso=$(date -d "$creation_time" --iso-8601=seconds)
+        echo -e "$file\t$creation_time_iso\t$deletion_time" >> "$LOG_FILE"
+        rm "$file"
+    fi
 done
