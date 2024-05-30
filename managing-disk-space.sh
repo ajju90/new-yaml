@@ -3,11 +3,16 @@
 # Default time threshold in hours
 DEFAULT_THRESHOLD="40hrs"
 
-# Directory to clean
-DIR="/data/audios/folder"
+# Directory to clean, passed as the first argument, or default if not provided
+DIR="${1:-/data/audios/folder}"
+# Time threshold passed as the second argument, or default if not provided
+TIME_THRESHOLD="${2:-$DEFAULT_THRESHOLD}"
 
-# Time threshold passed as an argument, or default if not provided
-TIME_THRESHOLD="${1:-$DEFAULT_THRESHOLD}"
+# Check if the directory exists
+if [ ! -d "$DIR" ]; then
+  echo "Error: Directory $DIR does not exist."
+  exit 1
+fi
 
 # Convert the time threshold into seconds
 THRESHOLD_SECONDS=$(echo $TIME_THRESHOLD | sed 's/hrs$//')*3600
